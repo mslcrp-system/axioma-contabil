@@ -316,7 +316,7 @@ export function TractionSimulator({ historicalData }: TractionSimulatorProps) {
                     fontSize: "13px",
                     fontWeight: 600,
                   }}
-                  formatter={(val: any, name: string) => [
+                  formatter={(val: any, name: any) => [
                     fmt(val),
                     name === "cenarioAtual" ? "Cenário Atual" : "Cenário Axioma",
                   ]}
