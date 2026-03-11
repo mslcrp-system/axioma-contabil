@@ -58,9 +58,17 @@ export const useMappingUIStore = create<MappingUIState>((set) => ({
   setCsvMetadata: (cnpj, date, clientId) =>
     set({ currentCnpj: cnpj, referenceDate: date, ...(clientId && { clientId }) }),
 
-  // Switches client — wipes ALL session data for absolute tenant isolation
+  // Switches client — wipes session data ONLY if switching to a DIFFERENT client
+  // If selecting the same client, we preserve the state to avoid broken re-renders
   setClientId: (clientId, cnpj) =>
-    set({ clientId, currentCnpj: cnpj, ...emptySession }),
+    set((state) => {
+      const isNewClient = state.clientId !== clientId;
+      return {
+        clientId,
+        currentCnpj: cnpj,
+        ...(isNewClient ? emptySession : {})
+      };
+    }),
 
   setSyncStatus: (status, error = undefined) =>
     set({ syncStatus: status, errorMessage: error || null }),
