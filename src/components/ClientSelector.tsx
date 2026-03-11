@@ -23,11 +23,30 @@ export function ClientSelector() {
           .select('id, name, cnpj')
           .order('name', { ascending: true });
 
-        if (error) throw error;
+        if (error) {
+          // Full RLS/API diagnostic logging
+          console.error('[ClientSelector] Supabase error fetching clients:', {
+            code: (error as any).code,
+            message: error.message,
+            hint: (error as any).hint,
+            details: (error as any).details,
+          });
+          throw error;
+        }
+        console.log('[ClientSelector] Loaded', data?.length ?? 0, 'clients');
         setClients(data || []);
-      } catch (err) {
-        console.error("Failed to load clients:", err);
-        setError("Erro ao carregar clientes.");
+      } catch (err: any) {
+        const code = err?.code ?? '';
+        const hint = err?.hint ?? '';
+        const msg = err?.message ?? 'Erro desconhecido';
+        console.error('[ClientSelector] fetch failed:', err);
+        // PGRST116 = table/view not found; 42501 = RLS denied
+        const friendlyMsg = code === '42501'
+          ? `Acesso negado (RLS). Execute: GRANT SELECT ON clients TO anon;`
+          : code === 'PGRST116'
+          ? `Tabela "clients" não encontrada no schema público.`
+          : `Erro (${code}): ${msg}${hint ? ` — ${hint}` : ''}`;
+        setError(friendlyMsg);
       } finally {
         setIsLoading(false);
       }

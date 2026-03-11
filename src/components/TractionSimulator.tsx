@@ -135,7 +135,7 @@ export function TractionSimulator({ historicalData }: TractionSimulatorProps) {
           </div>
           <div>
             <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">
-              Geração de Caixa Adicional Projetada em 6 Meses
+              Aumento de Lucratividade Projetada em 6 Meses
             </p>
             <p
               className={`text-3xl font-black tracking-tight ${isPositive ? "text-emerald-700" : "text-rose-700"}`}
@@ -267,7 +267,7 @@ export function TractionSimulator({ historicalData }: TractionSimulatorProps) {
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-black text-slate-800 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-emerald-500" />
-              Trajetória de Caixa Acumulado (6 Meses)
+              Trajetória de Resultado Operacional Acumulado (6 Meses)
             </h4>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5">

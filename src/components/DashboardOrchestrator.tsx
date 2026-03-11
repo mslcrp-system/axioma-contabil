@@ -3,7 +3,7 @@
 import { useMappingUIStore } from "../store/useMappingUIStore";
 import { UploadZone } from "./UploadZone";
 import { BucketManager, Bucket } from "./BucketManager";
-import { FileText, ArrowRight, Settings, Grid, Tag, Loader2, BarChart3, TrendingUp, DollarSign, Calendar, Percent } from "lucide-react";
+import { FileText, ArrowRight, Settings, Grid, Tag, Loader2, BarChart3, TrendingUp, DollarSign, Calendar, Percent, Building2 } from "lucide-react";
 import { SocraticInsights } from "./SocraticInsights";
 import { TractionSimulator } from "./TractionSimulator";
 import { ClientSelector } from "./ClientSelector";
@@ -246,39 +246,66 @@ export function DashboardOrchestrator() {
 
       <main className="flex-1 p-8 max-w-[1600px] w-full mx-auto">
 
-        {/* ===== EMPTY STATE: No client selected ===== */}
-        {!clientId && !showUploadModal && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 animate-in fade-in duration-500">
-            <div className="w-20 h-20 rounded-3xl bg-white border-2 border-slate-200 flex items-center justify-center shadow-sm">
-              <Settings className="w-10 h-10 text-slate-300" />
-            </div>
-            <div className="text-center max-w-sm">
-              <h2 className="text-xl font-black text-slate-700 mb-2">Selecione uma empresa</h2>
-              <p className="text-slate-500 font-medium leading-relaxed">
-                Selecione uma empresa ou importe um novo balancete para iniciar o diagnóstico.
+        {/* ===== LOBBY: No client selected ===== */}
+        {!clientId && (
+          <div className="flex flex-col items-center justify-center min-h-[75vh] gap-10 animate-in fade-in duration-700">
+            {/* Brand hero */}
+            <div className="text-center">
+              <h2 className="text-4xl font-black text-slate-800 tracking-tight mb-2">
+                Axioma <span className="text-blue-600">| Inteligência Contábil</span>
+              </h2>
+              <p className="text-slate-500 text-lg font-medium">
+                Selecione uma empresa para iniciar o diagnóstico ou importe um novo balancete.
               </p>
             </div>
-            <button
-              onClick={() => { setSyncStatus('idle'); setShowUploadModal(true); }}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-2xl shadow-sm transition-all hover:shadow-md"
-            >
-              <Calendar className="w-4 h-4" /> Importar Novo Balancete
-            </button>
+
+            {/* Two action cards */}
+            <div className="grid grid-cols-2 gap-6 w-full max-w-2xl">
+              {/* Card A: Access existing client */}
+              <div className="bg-white border-2 border-slate-200 rounded-3xl p-8 flex flex-col items-center gap-5 hover:border-blue-300 hover:shadow-lg transition-all duration-200 group">
+                <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                  <Building2 className="w-8 h-8 text-blue-600" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-black text-slate-800 mb-1">Acessar Cliente Existente</h3>
+                  <p className="text-sm text-slate-500">Selecione uma empresa cadastrada no sistema.</p>
+                </div>
+                <ClientSelector />
+              </div>
+
+              {/* Card B: New diagnosis / upload */}
+              <button
+                onClick={() => { setSyncStatus('idle'); setShowUploadModal(true); }}
+                className="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-700 rounded-3xl p-8 flex flex-col items-center gap-5 hover:from-blue-700 hover:to-blue-900 hover:border-blue-600 transition-all duration-200 group text-left"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+                  <FileText className="w-8 h-8 text-white" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-black text-white mb-1">Novo Diagnóstico</h3>
+                  <p className="text-sm text-slate-400 group-hover:text-slate-300 transition-colors">Importe um balancete CSV para criar um novo cliente.</p>
+                </div>
+                <span className="flex items-center gap-2 bg-white/10 text-white text-sm font-bold px-4 py-2 rounded-xl group-hover:bg-white/20 transition-colors">
+                  <Calendar className="w-4 h-4" /> Importar Balancete
+                </span>
+              </button>
+            </div>
           </div>
         )}
 
-        {( !currentCnpj || showUploadModal ) && (
+        {/* Upload modal — only triggered by explicit user action */}
+        {showUploadModal && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-8 relative animate-in zoom-in-95 duration-300">
-                <button 
+                <button
                     onClick={() => setShowUploadModal(false)}
                     className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 p-2"
                 >
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
                 <div className="mb-8 text-center">
-                    <h2 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">Ingestão de Inteligência</h2>
-                    <p className="text-slate-500 text-lg">Submeta o Balancete para iniciar a extração de insights auditáveis.</p>
+                    <h2 className="text-3xl font-black text-slate-800 mb-4 tracking-tight">Novo Diagnóstico</h2>
+                    <p className="text-slate-500 text-lg">Submeta o Balancete CSV para iniciar a extração de insights auditáveis.</p>
                 </div>
                 <div className="mb-0">
                     <UploadZone />
