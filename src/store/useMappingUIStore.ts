@@ -2,6 +2,13 @@ import { create } from 'zustand';
 
 export type SyncStatus = 'idle' | 'parsing' | 'uploading' | 'success' | 'error';
 
+export interface AIInsight {
+  title: string;
+  math_fact: string;
+  socratic_question: string;
+  severity: 'alta' | 'media';
+}
+
 export interface RawAccount {
   account_code: string;
   account_name: string;
@@ -26,12 +33,14 @@ interface MappingUIState {
   selectedOrphanCodes: string[];
   bucketCounts: Record<string, number>;
   allRawBalances: RawAccount[];
+  insights: AIInsight[];
 
   setCsvMetadata: (cnpj: string, date: string, clientId?: string) => void;
   setClientId: (clientId: string, cnpj: string) => void;
   setSyncStatus: (status: SyncStatus, error?: string) => void;
   setOrphanAccounts: (accounts: RawAccount[]) => void;
   setAllRawBalances: (accounts: RawAccount[]) => void;
+  setInsights: (insights: AIInsight[]) => void;
   setBucketCounts: (counts: Record<string, number>) => void;
   setAvailableCompetences: (competences: { id: string; reference_date: string }[]) => void;
   toggleAccountSelection: (code: string) => void;
@@ -48,6 +57,7 @@ const emptySession = {
   bucketCounts: {} as Record<string, number>,
   availableCompetences: [] as { id: string; reference_date: string }[],
   allRawBalances: [] as RawAccount[],
+  insights: [] as AIInsight[],
 };
 
 export const useMappingUIStore = create<MappingUIState>((set) => ({
@@ -76,6 +86,8 @@ export const useMappingUIStore = create<MappingUIState>((set) => ({
   setOrphanAccounts: (accounts) => set({ orphanAccounts: accounts }),
 
   setAllRawBalances: (accounts) => set({ allRawBalances: accounts }),
+
+  setInsights: (insights) => set({ insights }),
 
   setBucketCounts: (counts) => set({ bucketCounts: counts }),
 

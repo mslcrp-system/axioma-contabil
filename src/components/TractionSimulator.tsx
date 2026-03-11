@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, forwardRef, useImperativeHandle } from "react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -26,7 +26,16 @@ const fmt = (v: number) =>
 
 const MONTH_LABELS = ["Mês 1", "Mês 2", "Mês 3", "Mês 4", "Mês 5", "Mês 6"];
 
-export function TractionSimulator({ historicalData }: TractionSimulatorProps) {
+export interface TractionSimulatorHandle {
+  getSnapshot: () => {
+    base: { receita: number; custo: number; despAdm: number; resultado: number };
+    projected: { receita: number; custo: number; despAdm: number; resultado: number };
+    deltaResultado: number;
+    geracaoCaixaAdicional: number;
+  };
+}
+
+export const TractionSimulator = forwardRef<TractionSimulatorHandle, TractionSimulatorProps>(({ historicalData }, ref) => {
   const [costReduction, setCostReduction] = useState(0); // 0 to -20
   const [adminReduction, setAdminReduction] = useState(0); // 0 to -30
   const [revenueGrowth, setRevenueGrowth] = useState(0); // 0 to +20
@@ -88,6 +97,25 @@ export function TractionSimulator({ historicalData }: TractionSimulatorProps) {
     const last = projectionData[projectionData.length - 1];
     return last.cenarioAxioma - last.cenarioAtual;
   }, [projectionData]);
+
+  useImperativeHandle(ref, () => ({
+    getSnapshot: () => ({
+      base: {
+        receita: baseReceita,
+        custo: baseCusto,
+        despAdm: baseDespAdm,
+        resultado: baseResultado
+      },
+      projected: {
+        receita: projReceita,
+        custo: projCusto,
+        despAdm: projDesp,
+        resultado: projResultado
+      },
+      deltaResultado,
+      geracaoCaixaAdicional
+    })
+  }));
 
   if (!baseMonth || Math.abs(baseMonth.receita || 0) === 0) {
     return null;
@@ -381,7 +409,7 @@ export function TractionSimulator({ historicalData }: TractionSimulatorProps) {
       </div>
     </div>
   );
-}
+});
 
 /* ===== Slider Control Sub-component ===== */
 interface SliderControlProps {

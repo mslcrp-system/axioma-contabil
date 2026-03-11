@@ -1,15 +1,7 @@
-"use client";
-
 import { AlertCircle, TrendingDown, Zap, Search, ArrowUpRight, Loader2, Sparkles, HelpCircle, TrendingUp, Brain } from "lucide-react";
 import { Bucket } from "./BucketManager";
 import { useState } from "react";
-
-interface AIInsight {
-  title: string;
-  math_fact: string;
-  socratic_question: string;
-  severity: 'alta' | 'media';
-}
+import { useMappingUIStore, AIInsight } from "../store/useMappingUIStore";
 
 interface SocraticInsightsProps {
   data: any[];
@@ -21,6 +13,7 @@ export function SocraticInsights({ data, buckets }: SocraticInsightsProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasRun, setHasRun] = useState(false);
+  const { setInsights: setGlobalInsights } = useMappingUIStore();
 
   if (!data || data.length < 2) return null;
 
@@ -49,7 +42,9 @@ export function SocraticInsights({ data, buckets }: SocraticInsightsProps) {
 
       if (!response.ok) throw new Error("Erro na API da IA");
       const json = await response.json();
-      setInsights(json.insights || []);
+      const newInsights = json.insights || [];
+      setInsights(newInsights);
+      setGlobalInsights(newInsights);
     } catch (err) {
       console.error(err);
       setError("Não foi possível carregar os insights. Tente novamente.");

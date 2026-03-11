@@ -12,6 +12,11 @@ import { supabase } from "../lib/supabase";
 import { aggregateBalancesByBucket, AggregatedResult } from "../lib/engine";
 import { fetchBalancesForCompetence, fetchClientCompetences, fetchHistoricalAggregatedData } from "../lib/sync-engine";
 import { ResponsiveContainer, ComposedChart, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts';
+import { useRef } from "react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { ExecutiveReportTemplate } from "./ExecutiveReportTemplate";
+import { TractionSimulatorHandle } from "./TractionSimulator";
 
 export function DashboardOrchestrator() {
   const { 
@@ -30,8 +35,15 @@ export function DashboardOrchestrator() {
     availableCompetences,
     setAvailableCompetences,
     setCsvMetadata,
-    setSyncStatus
+    setSyncStatus,
+    insights
   } = useMappingUIStore();
+  
+  const simulatorRef = useRef<TractionSimulatorHandle>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [pdfSnapshot, setPdfSnapshot] = useState<any>(null);
+  const [clientName, setClientName] = useState("");
   const [localBuckets, setLocalBuckets] = useState<Bucket[]>([]);
   const [isBucketsLoading, setIsBucketsLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(false);
@@ -64,6 +76,16 @@ export function DashboardOrchestrator() {
     };
     fetchComps();
   }, [clientId, setAvailableCompetences]);
+
+  // Fetch client name for PDF
+  useEffect(() => {
+    if (!clientId) return;
+    const fetchName = async () => {
+      const { data } = await supabase.from('tctb1_clients').select('name').eq('id', clientId).single();
+      if (data) setClientName(data.name);
+    };
+    fetchName();
+  }, [clientId]);
 
   // AUTO-SELECT: when competences load, immediately select the most recent one
   // Only fires when there's no referenceDate yet (fresh client switch)
@@ -196,6 +218,38 @@ export function DashboardOrchestrator() {
     return result;
   };
 
+  const handleGeneratePDF = async () => {
+    if (!simulatorRef.current || !reportRef.current || !clientId) return;
+    
+    setIsGeneratingPDF(true);
+    const snapshot = simulatorRef.current.getSnapshot();
+    setPdfSnapshot(snapshot);
+
+    try {
+      // Wait for state to propagate to hidden template
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2, // higher resolution
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff"
+      });
+      
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Axioma_Diagnostico_${currentCnpj}.pdf`);
+    } catch (err) {
+      console.error("PDF Error:", err);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
       
@@ -224,6 +278,33 @@ export function DashboardOrchestrator() {
 
             {/* Multi-tenant client selector */}
             <ClientSelector />
+
+            {/* PDF Extraction Button */}
+            {clientId && view === 'dashboard' && (
+              <button
+                onClick={handleGeneratePDF}
+                disabled={isGeneratingPDF || insights.length === 0}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl border font-bold text-xs transition-all
+                  ${isGeneratingPDF 
+                    ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-wait' 
+                    : insights.length > 0
+                      ? 'bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-700 hover:shadow-lg'
+                      : 'bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed'
+                  }`}
+              >
+                {isGeneratingPDF ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-3.5 h-3.5" />
+                    📥 Gerar Diagnóstico Executivo (PDF)
+                  </>
+                )}
+              </button>
+            )}
 
             {/* Per-client controls — only shown when a client is selected */}
             {clientId && currentCnpj && (
@@ -547,7 +628,7 @@ export function DashboardOrchestrator() {
                     <p className="text-slate-500 font-semibold text-sm">Carregando dados do período mais recente...</p>
                   </div>
                 ) : (
-                  <TractionSimulator historicalData={historicalData} />
+                  <TractionSimulator ref={simulatorRef} historicalData={historicalData} />
                 )}
 
                 <div className="mb-6 mt-12">
@@ -593,6 +674,18 @@ export function DashboardOrchestrator() {
             </div>
         )}
       </main>
+
+      {/* Hidden container for PDF Extraction Template */}
+      <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
+        <ExecutiveReportTemplate
+          ref={reportRef}
+          clientName={clientName}
+          cnpj={currentCnpj || ""}
+          date={referenceDate || ""}
+          insights={insights}
+          simulation={pdfSnapshot}
+        />
+      </div>
     </div>
   );
 }
