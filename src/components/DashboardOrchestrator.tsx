@@ -34,6 +34,7 @@ export function DashboardOrchestrator() {
   } = useMappingUIStore();
   const [localBuckets, setLocalBuckets] = useState<Bucket[]>([]);
   const [isBucketsLoading, setIsBucketsLoading] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(false);
   const [view, setView] = useState<'mapping' | 'dashboard'>('mapping');
   const [dbMappings, setDbMappings] = useState<{account_code: string, bucket_id: string}[]>([]);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
@@ -63,6 +64,23 @@ export function DashboardOrchestrator() {
     };
     fetchComps();
   }, [clientId, setAvailableCompetences]);
+
+  // AUTO-SELECT: when competences load, immediately select the most recent one
+  // Only fires when there's no referenceDate yet (fresh client switch)
+  useEffect(() => {
+    if (!clientId) return;
+    if (availableCompetences.length === 0) return;
+    // availableCompetences is already ordered DESC by reference_date from fetchClientCompetences
+    const mostRecent = availableCompetences[0];
+    if (!referenceDate || !availableCompetences.find(c => c.reference_date === referenceDate)) {
+      setIsDataLoading(true);
+      handleMonthChange(mostRecent.id).finally(() => {
+        setIsDataLoading(false);
+        setView('dashboard');
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableCompetences, clientId]);
 
   // Fetch historical data for charts (Unfiltered timeline)
   useEffect(() => {
@@ -173,6 +191,7 @@ export function DashboardOrchestrator() {
         setAllRawBalances([...(result.orphanAccounts || []), ...(result.mappedAccounts || [])]);
     }
     setIsBucketsLoading(false);
+    return result;
   };
 
   return (
@@ -520,12 +539,28 @@ export function DashboardOrchestrator() {
 
                 <SocraticInsights data={historicalData} buckets={localBuckets} />
 
-                <TractionSimulator historicalData={historicalData} />
+                {isDataLoading ? (
+                  <div className="mt-8 bg-white border border-slate-200 rounded-3xl p-10 flex flex-col items-center justify-center gap-4">
+                    <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                    <p className="text-slate-500 font-semibold text-sm">Carregando dados do período mais recente...</p>
+                  </div>
+                ) : (
+                  <TractionSimulator historicalData={historicalData} />
+                )}
 
                 <div className="mb-6 mt-12">
-                    <h3 className="text-xl font-bold text-slate-800 mb-4">Resumo do Último Mês ({referenceDate})</h3>
+                    <h3 className="text-xl font-bold text-slate-800 mb-4">Resumo do Último Mês ({referenceDate || '—'})</h3>
                     <div className="grid grid-cols-4 gap-4">
-                        {localBuckets.slice(0, 8).map(b => {
+                        {isDataLoading ? (
+                          Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-sm animate-pulse">
+                              <div className="h-3 bg-slate-200 rounded w-2/3 mb-2" />
+                              <div className="h-4 bg-slate-100 rounded w-full mb-3" />
+                              <div className="h-6 bg-slate-200 rounded w-1/2" />
+                            </div>
+                          ))
+                        ) : (
+                          localBuckets.slice(0, 8).map(b => {
                             const balance = aggregatedData.find(d => d.bucketId === b.id)?.totalBalance || 0;
                             const isNegative = balance < 0;
                             return (
@@ -540,7 +575,8 @@ export function DashboardOrchestrator() {
                                     </div>
                                 </div>
                             );
-                        })}
+                          })
+                        )}
                     </div>
                 </div>
 
