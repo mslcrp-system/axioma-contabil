@@ -5,6 +5,7 @@ import { UploadZone } from "./UploadZone";
 import { BucketManager, Bucket } from "./BucketManager";
 import { FileText, ArrowRight, Settings, Grid, Tag, Loader2, BarChart3, TrendingUp, DollarSign, Calendar, Percent } from "lucide-react";
 import { SocraticInsights } from "./SocraticInsights";
+import { TractionSimulator } from "./TractionSimulator";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { aggregateBalancesByBucket, AggregatedResult } from "../lib/engine";
@@ -470,6 +471,8 @@ export function DashboardOrchestrator() {
                 </div>
 
                 <SocraticInsights data={historicalData} buckets={localBuckets} />
+
+                <TractionSimulator historicalData={historicalData} />
 
                 <div className="mb-6 mt-12">
                     <h3 className="text-xl font-bold text-slate-800 mb-4">Resumo do Último Mês ({referenceDate})</h3>
