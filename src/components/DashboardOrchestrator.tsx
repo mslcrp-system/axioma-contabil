@@ -68,19 +68,12 @@ export function DashboardOrchestrator() {
   // AUTO-SELECT: when competences load, immediately select the most recent one
   // Only fires when there's no referenceDate yet (fresh client switch)
   useEffect(() => {
-    console.log('[Orchestrator] Auto-select effect:', { 
-      clientId, 
-      availableComps: availableCompetences.length, 
-      refDate: referenceDate 
-    });
     if (!clientId) return;
     if (availableCompetences.length === 0) return;
     
     const mostRecent = availableCompetences[0];
     const needsSelection = !referenceDate || !availableCompetences.find(c => c.reference_date === referenceDate);
     
-    console.log('[Orchestrator] needsSelection?', needsSelection);
-
     if (needsSelection) {
       setIsDataLoading(true);
       handleMonthChange(mostRecent.id).finally(() => {
