@@ -19,7 +19,7 @@ export function ClientSelector() {
       setIsLoading(true);
       try {
         const { data, error } = await supabase
-          .from('clients')
+          .from('tctb1_clients')
           .select('id, name, cnpj')
           .order('name', { ascending: true });
 
