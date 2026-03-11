@@ -63,6 +63,12 @@ export const useMappingUIStore = create<MappingUIState>((set) => ({
   setClientId: (clientId, cnpj) =>
     set((state) => {
       const isNewClient = state.clientId !== clientId;
+      console.log('[Store] setClientId:', { 
+        prev: state.clientId, 
+        next: clientId, 
+        isNewClient,
+        match: state.clientId === clientId
+      });
       return {
         clientId,
         currentCnpj: cnpj,
