@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 
-// Types representing Supabase Tables locally
 export type SyncStatus = 'idle' | 'parsing' | 'uploading' | 'success' | 'error';
 
 export interface RawAccount {
@@ -10,25 +9,26 @@ export interface RawAccount {
   nature: 'Devedor' | 'Credor';
 }
 
+export interface ClientRecord {
+  id: string;
+  name: string;
+  cnpj: string;
+}
+
 interface MappingUIState {
-  // Application Transient States
   currentCnpj: string | null;
-  clientId: string | null; // Core UI foreign key
+  clientId: string | null;
   referenceDate: string | null;
-  availableCompetences: { id: string; reference_date: string }[]; // List for the month selector
+  availableCompetences: { id: string; reference_date: string }[];
   syncStatus: SyncStatus;
   errorMessage: string | null;
-  
-  // Mapped vs Unmapped tracking during session
   orphanAccounts: RawAccount[];
-  
-  // UI Selection State
   selectedOrphanCodes: string[];
-  bucketCounts: Record<string, number>; // Hydration for mapping UI
-  allRawBalances: RawAccount[]; // Full balance for dashboard engine
-  
-  // Actions
+  bucketCounts: Record<string, number>;
+  allRawBalances: RawAccount[];
+
   setCsvMetadata: (cnpj: string, date: string, clientId?: string) => void;
+  setClientId: (clientId: string, cnpj: string) => void;
   setSyncStatus: (status: SyncStatus, error?: string) => void;
   setOrphanAccounts: (accounts: RawAccount[]) => void;
   setAllRawBalances: (accounts: RawAccount[]) => void;
@@ -39,48 +39,48 @@ interface MappingUIState {
   resetSession: () => void;
 }
 
+const emptySession = {
+  referenceDate: null as null,
+  syncStatus: 'idle' as SyncStatus,
+  errorMessage: null as null,
+  orphanAccounts: [] as RawAccount[],
+  selectedOrphanCodes: [] as string[],
+  bucketCounts: {} as Record<string, number>,
+  availableCompetences: [] as { id: string; reference_date: string }[],
+  allRawBalances: [] as RawAccount[],
+};
+
 export const useMappingUIStore = create<MappingUIState>((set) => ({
   currentCnpj: null,
   clientId: null,
-  referenceDate: null,
-  availableCompetences: [],
-  syncStatus: 'idle',
-  errorMessage: null,
-  orphanAccounts: [],
-  selectedOrphanCodes: [],
-  bucketCounts: {},
-  allRawBalances: [],
-  
-  setCsvMetadata: (cnpj, date, clientId) => set({ currentCnpj: cnpj, referenceDate: date, ...(clientId && { clientId }) }),
-  
-  setSyncStatus: (status, error = undefined) => set({ syncStatus: status, errorMessage: error || null }),
-  
+  ...emptySession,
+
+  setCsvMetadata: (cnpj, date, clientId) =>
+    set({ currentCnpj: cnpj, referenceDate: date, ...(clientId && { clientId }) }),
+
+  // Switches client — wipes ALL session data for absolute tenant isolation
+  setClientId: (clientId, cnpj) =>
+    set({ clientId, currentCnpj: cnpj, ...emptySession }),
+
+  setSyncStatus: (status, error = undefined) =>
+    set({ syncStatus: status, errorMessage: error || null }),
+
   setOrphanAccounts: (accounts) => set({ orphanAccounts: accounts }),
-  
+
   setAllRawBalances: (accounts) => set({ allRawBalances: accounts }),
-  
+
   setBucketCounts: (counts) => set({ bucketCounts: counts }),
 
   setAvailableCompetences: (competences) => set({ availableCompetences: competences }),
-  
-  toggleAccountSelection: (code) => set((state) => ({
-    selectedOrphanCodes: state.selectedOrphanCodes.includes(code)
-      ? state.selectedOrphanCodes.filter((c) => c !== code)
-      : [...state.selectedOrphanCodes, code]
-  })),
-  
+
+  toggleAccountSelection: (code) =>
+    set((state) => ({
+      selectedOrphanCodes: state.selectedOrphanCodes.includes(code)
+        ? state.selectedOrphanCodes.filter((c) => c !== code)
+        : [...state.selectedOrphanCodes, code],
+    })),
+
   clearSelection: () => set({ selectedOrphanCodes: [] }),
-  
-  resetSession: () => set({
-    currentCnpj: null,
-    clientId: null,
-    referenceDate: null,
-    syncStatus: 'idle',
-    errorMessage: null,
-    orphanAccounts: [],
-    selectedOrphanCodes: [],
-    bucketCounts: {},
-    availableCompetences: [],
-    allRawBalances: []
-  })
+
+  resetSession: () => set({ currentCnpj: null, clientId: null, ...emptySession }),
 }));

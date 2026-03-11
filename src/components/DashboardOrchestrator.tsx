@@ -6,6 +6,7 @@ import { BucketManager, Bucket } from "./BucketManager";
 import { FileText, ArrowRight, Settings, Grid, Tag, Loader2, BarChart3, TrendingUp, DollarSign, Calendar, Percent } from "lucide-react";
 import { SocraticInsights } from "./SocraticInsights";
 import { TractionSimulator } from "./TractionSimulator";
+import { ClientSelector } from "./ClientSelector";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { aggregateBalancesByBucket, AggregatedResult } from "../lib/engine";
@@ -199,19 +200,18 @@ export function DashboardOrchestrator() {
                 <Calendar className="w-3.5 h-3.5" /> Importar Balancete
             </button>
             <div className="w-px h-8 bg-slate-200"></div>
-            {currentCnpj && (
-              <div className="flex items-center gap-6 bg-slate-50 border border-slate-200 px-4 py-2 rounded-lg shadow-sm">
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Empresa</span>
-                  <span className="text-sm font-semibold text-slate-700">{currentCnpj}</span>
-                </div>
-                
-                <div className="w-px h-8 bg-slate-300"></div>
 
+            {/* Multi-tenant client selector */}
+            <ClientSelector />
+
+            {/* Per-client controls — only shown when a client is selected */}
+            {clientId && currentCnpj && (
+              <div className="flex items-center gap-4">
+                <div className="w-px h-8 bg-slate-200"></div>
                 <div className="flex flex-col">
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Competência</span>
                     {availableCompetences.length > 1 ? (
-                        <select 
+                        <select
                             value={availableCompetences.find(c => c.reference_date === referenceDate)?.id || ''}
                             onChange={(e) => handleMonthChange(e.target.value)}
                             className="text-sm font-semibold text-blue-600 bg-transparent border-none focus:ring-0 cursor-pointer p-0 h-5"
@@ -221,18 +221,18 @@ export function DashboardOrchestrator() {
                             ))}
                         </select>
                     ) : (
-                        <span className="text-sm font-semibold text-slate-700">{referenceDate}</span>
+                        <span className="text-sm font-semibold text-slate-700">{referenceDate || '—'}</span>
                     )}
                 </div>
                 <div className="w-px h-8 bg-slate-300"></div>
                 <div className="flex bg-slate-100 p-1 rounded-lg">
-                    <button 
+                    <button
                       onClick={() => setView('mapping')}
                       className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${view === 'mapping' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         <Grid className="w-4 h-4" /> Mapeamento
                     </button>
-                    <button 
+                    <button
                       onClick={() => setView('dashboard')}
                       className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${view === 'dashboard' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
@@ -245,7 +245,28 @@ export function DashboardOrchestrator() {
       </header>
 
       <main className="flex-1 p-8 max-w-[1600px] w-full mx-auto">
-        
+
+        {/* ===== EMPTY STATE: No client selected ===== */}
+        {!clientId && !showUploadModal && (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 animate-in fade-in duration-500">
+            <div className="w-20 h-20 rounded-3xl bg-white border-2 border-slate-200 flex items-center justify-center shadow-sm">
+              <Settings className="w-10 h-10 text-slate-300" />
+            </div>
+            <div className="text-center max-w-sm">
+              <h2 className="text-xl font-black text-slate-700 mb-2">Selecione uma empresa</h2>
+              <p className="text-slate-500 font-medium leading-relaxed">
+                Selecione uma empresa ou importe um novo balancete para iniciar o diagnóstico.
+              </p>
+            </div>
+            <button
+              onClick={() => { setSyncStatus('idle'); setShowUploadModal(true); }}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-2xl shadow-sm transition-all hover:shadow-md"
+            >
+              <Calendar className="w-4 h-4" /> Importar Novo Balancete
+            </button>
+          </div>
+        )}
+
         {( !currentCnpj || showUploadModal ) && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-8 relative animate-in zoom-in-95 duration-300">
