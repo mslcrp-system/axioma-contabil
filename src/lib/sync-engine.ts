@@ -273,6 +273,9 @@ export const fetchHistoricalAggregatedData = async (
                 'Passivo Oneroso': 0
             };
 
+            let clientesSum = 0;
+            let fornecedoresSum = 0;
+
             buckets.forEach(b => {
                 const accounts = (drillDown[comp.id] && drillDown[comp.id][b.id]) || [];
                 const signedSum = accounts.reduce((sum, acc) => sum + acc.balance, 0);
@@ -285,13 +288,22 @@ export const fetchHistoricalAggregatedData = async (
                 if (macroTotals[b.macro_class] !== undefined) {
                     macroTotals[b.macro_class] += normalized;
                 }
+
+                // Granular Filtering for Financing Structure (Isolation)
+                const nameLower = b.name.toLowerCase();
+                if (nameLower.includes('cliente') || nameLower.includes('receber')) {
+                    clientesSum += normalized;
+                }
+                if (nameLower.includes('fornecedor') || nameLower.includes('pagar')) {
+                    fornecedoresSum += normalized;
+                }
             });
 
             row['receita'] = macroTotals['Receita'] || 0;
             row['custo'] = macroTotals['Custo Variável'] || 0;
             row['desp_adm'] = macroTotals['Despesa Fixa'] || 0;
-            row['clientes'] = macroTotals['Ativo Circulante'] || 0;
-            row['fornecedores'] = macroTotals['Passivo Circulante'] || 0;
+            row['clientes'] = clientesSum;
+            row['fornecedores'] = fornecedoresSum;
             row['passivo_oneroso'] = macroTotals['Passivo Oneroso'] || 0;
             
             // Calculate Bottom Line (Resultado) using macro totals for safety
