@@ -177,7 +177,7 @@ export function DashboardOrchestrator() {
         setDbMappings(prev => prev.filter(m => m.account_code !== accountCode));
         const accToRestore = allRawBalances.find(a => a.account_code === accountCode);
         if (accToRestore) {
-            setOrphanAccounts(prev => [...prev, accToRestore]);
+            setOrphanAccounts([...orphanAccounts, accToRestore]);
         }
     }
   };
