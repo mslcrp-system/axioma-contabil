@@ -3,7 +3,7 @@
 import { useMappingUIStore } from "../store/useMappingUIStore";
 import { UploadZone } from "./UploadZone";
 import { BucketManager, Bucket } from "./BucketManager";
-import { FileText, ArrowRight, Settings, Grid, Tag, Loader2, BarChart3, TrendingUp, DollarSign, Calendar, Building2, Edit2, Trash2, ChevronDown, ChevronUp, Link2Off } from "lucide-react";
+import { FileText, ArrowRight, Settings, Grid, Tag, Loader2, BarChart3, TrendingUp, DollarSign, Calendar, Building2, Edit2, Trash2, ChevronDown, ChevronUp, Link2Off, X } from "lucide-react";
 import { SocraticInsights } from "./SocraticInsights";
 import { TractionSimulator } from "./TractionSimulator";
 import { ClientSelector } from "./ClientSelector";
