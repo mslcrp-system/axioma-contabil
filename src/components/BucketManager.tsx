@@ -30,19 +30,35 @@ const MACRO_CLASSES: MacroClass[] = [
 
 interface BucketManagerProps {
   onBucketCreated: (bucket: Bucket) => void;
+  onBucketUpdated?: (bucket: Bucket) => void;
+  onCancel?: () => void;
+  bucket?: Bucket;
 }
 
-export function BucketManager({ onBucketCreated }: BucketManagerProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [bucketName, setBucketName] = useState("");
-  const [selectedMacroClass, setSelectedMacroClass] = useState<MacroClass>('Despesa Fixa');
+export function BucketManager({ onBucketCreated, onBucketUpdated, onCancel, bucket }: BucketManagerProps) {
+  const [isOpen, setIsOpen] = useState(bucket ? true : false);
+  const [bucketName, setBucketName] = useState(bucket?.name || "");
+  const [selectedMacroClass, setSelectedMacroClass] = useState<MacroClass>(bucket?.macro_class || 'Despesa Fixa');
+  
+  const handleCancel = () => {
+    if (onCancel) onCancel();
+    setIsOpen(false);
+  };
 
   const handleCreate = () => {
     if (!bucketName.trim()) return;
 
-    // TODO: Subir pro Supabase (POST /api/buckets) em implementações futuras
+    if (bucket && onBucketUpdated) {
+        onBucketUpdated({
+            ...bucket,
+            name: bucketName.trim(),
+            macro_class: selectedMacroClass
+        });
+        return;
+    }
+
     const newBucket: Bucket = {
-      id: crypto.randomUUID(), // Mock ID for now
+      id: crypto.randomUUID(), 
       name: bucketName.trim(),
       macro_class: selectedMacroClass,
       accountCount: 0
@@ -55,7 +71,7 @@ export function BucketManager({ onBucketCreated }: BucketManagerProps) {
     setIsOpen(false);
   };
 
-  if (!isOpen) {
+  if (!isOpen && !bucket) {
     return (
       <button 
         onClick={() => setIsOpen(true)}
@@ -68,13 +84,13 @@ export function BucketManager({ onBucketCreated }: BucketManagerProps) {
   }
 
   return (
-    <div className="bg-white border border-slate-200 shadow-xl rounded-xl p-4 w-80 absolute top-16 right-0 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
+    <div className={`bg-white border border-slate-200 shadow-xl rounded-xl p-4 w-80 z-50 animate-in fade-in slide-in-from-top-4 duration-200 ${bucket ? 'relative' : 'absolute top-16 right-0'}`}>
       <div className="flex items-center justify-between mb-4">
         <h4 className="font-bold text-slate-700 flex items-center gap-2">
             <FolderPlus className="w-4 h-4 text-blue-500" />
-            Novo Bucket
+            {bucket ? 'Editar Bucket' : 'Novo Bucket'}
         </h4>
-        <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-slate-600">
+        <button onClick={handleCancel} className="text-slate-400 hover:text-slate-600">
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -113,7 +129,7 @@ export function BucketManager({ onBucketCreated }: BucketManagerProps) {
           disabled={!bucketName.trim()}
           className="w-full bg-slate-800 text-white font-bold text-sm py-2 rounded-md hover:bg-slate-700 disabled:opacity-50 transition-colors"
         >
-          Salvar Bucket
+          {bucket ? 'Salvar Alterações' : 'Criar Bucket'}
         </button>
       </div>
     </div>
