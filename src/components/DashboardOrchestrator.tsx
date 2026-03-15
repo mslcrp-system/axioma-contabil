@@ -158,26 +158,52 @@ export function DashboardOrchestrator() {
 
   const handleDeleteBucket = async (bucketId: string) => {
     if (!clientId || !confirm("Deseja realmente excluir esta gaveta? Todas as contas vinculadas a ela voltarão para a lista de órfãs.")) return;
+    
+    // Optimistic UI update for account counts and orphan accounts
+    const mappedToThisBucket = dbMappings.filter(m => m.bucket_id === bucketId);
+    
+    // Delete mappings first (or rely on CASCADE if we trust it, but we handle it here for safety and UI state)
     const { error: unmapError } = await supabase.from('tctb1_mappings').delete().eq('bucket_id', bucketId).eq('client_id', clientId);
-    if (unmapError) return;
+    if (unmapError) {
+        console.error("Error unmapping accounts:", unmapError);
+        return;
+    }
+
     const { error } = await supabase.from('tctb1_buckets').delete().eq('id', bucketId);
     if (!error) {
+        // Move accounts back to orphans
+        const accountsToReturn = mappedToThisBucket.map(m => allRawBalances.find(a => a.account_code === m.account_code)).filter(Boolean) as any[];
+        
         setLocalBuckets(prev => prev.filter(b => b.id !== bucketId));
         setDbMappings(prev => prev.filter(m => m.bucket_id !== bucketId));
-        const mappedCodes = dbMappings.filter(m => m.bucket_id !== bucketId).map(m => m.account_code);
-        const filteredOrphans = allRawBalances.filter(acc => !mappedCodes.includes(acc.account_code));
-        setOrphanAccounts(filteredOrphans);
+        setOrphanAccounts([...orphanAccounts, ...accountsToReturn]);
+        
+        // Clean up bucket counts
+        const nextCounts = { ...bucketCounts };
+        delete nextCounts[bucketId];
+        setBucketCounts(nextCounts);
     }
   };
 
-  const handleUnmapAccount = async (accountCode: string) => {
+  const handleUnmapAccount = async (accountCode: string, bucketId: string) => {
     if (!clientId) return;
     const { error } = await supabase.from('tctb1_mappings').delete().eq('account_code', accountCode).eq('client_id', clientId);
     if (!error) {
+        // Update local mappings state
         setDbMappings(prev => prev.filter(m => m.account_code !== accountCode));
+        
+        // Restore account to orphan list
         const accToRestore = allRawBalances.find(a => a.account_code === accountCode);
         if (accToRestore) {
             setOrphanAccounts([...orphanAccounts, accToRestore]);
+        }
+
+        // Update bucket count
+        if (bucketId && bucketCounts[bucketId]) {
+            setBucketCounts({
+                ...bucketCounts,
+                [bucketId]: Math.max(0, bucketCounts[bucketId] - 1)
+            });
         }
     }
   };
@@ -442,7 +468,7 @@ export function DashboardOrchestrator() {
                                                         return (
                                                             <div key={m.account_code} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg group/item">
                                                                 <div className="min-w-0"><p className="text-[10px] font-mono text-slate-400 truncate">{m.account_code}</p><p className="text-xs font-bold text-slate-700 truncate">{acc?.account_name || '—'}</p></div>
-                                                                <button onClick={() => handleUnmapAccount(m.account_code)} className="p-1 text-slate-300 hover:text-rose-600 opacity-0 group-hover/item:opacity-100 transition-all" title="Desvincular conta"><Link2Off className="w-3.5 h-3.5" /></button>
+                                                                <button onClick={() => handleUnmapAccount(m.account_code, b.id)} className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded transition-all" title="Desvincular conta"><X className="w-3.5 h-3.5" /></button>
                                                             </div>
                                                         );
                                                     })}
