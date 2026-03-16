@@ -28,9 +28,10 @@ export const calculateNormalizedBalance = (
   macroClass: MacroClass, 
   signedBalance: number
 ): number => {
-  const creditorBased: MacroClass[] = ['Receita', 'Passivo Circulante', 'Passivo Oneroso'];
+  const creditorBased = ['receita', 'passivo circulante', 'passivo oneroso'];
+  const macroLower = (macroClass || '').toLowerCase();
   
-  if (creditorBased.includes(macroClass)) {
+  if (creditorBased.includes(macroLower)) {
     return signedBalance * -1;
   }
   

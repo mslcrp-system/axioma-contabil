@@ -141,25 +141,35 @@ export const runAutoAllocationSync = async (
 };
 
 /**
- * Fetches all uploaded competences (months) for a specific client.
+ * Fetches ALL raw balances for a set of competence IDs, handling pagination.
+ * Supabase/PostgREST typically limits to 1000 rows.
  */
-export const fetchClientCompetences = async (clientId: string) => {
-    const { data, error } = await supabase
-        .from('tctb1_competences')
-        .select('id, reference_date')
-        .eq('client_id', clientId)
-        .order('reference_date', { ascending: false });
-    
-    if (error) throw error;
-    return data;
-};
+export const fetchAllRawBalances = async (competenceIds: string[]) => {
+    const pageSize = 1000;
+    let allData: any[] = [];
+    let page = 0;
+    let hasMore = true;
 
-/**
- * Deletes a competence and all its associated balances (via CASCADE).
- */
-export const deleteCompetence = async (competenceId: string) => {
-    const { error } = await supabase.from('tctb1_competences').delete().eq('id', competenceId);
-    if (error) throw error;
+    while (hasMore) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+
+        const { data, error } = await supabase
+            .from('tctb1_raw_balances')
+            .select('competence_id, account_code, account_name, balance, nature, debit, credit')
+            .in('competence_id', competenceIds)
+            .range(from, to);
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+            hasMore = false;
+        } else {
+            allData = [...allData, ...data];
+            hasMore = data.length === pageSize;
+            page++;
+        }
+    }
+    return allData;
 };
 
 /**
@@ -170,14 +180,9 @@ export const fetchBalancesForCompetence = async (
     competenceId: string
 ): Promise<SyncEngineResult> => {
     try {
-        // 1. Fetch raw balances
-        const { data: rawBalances, error: balError } = await supabase
-            .from('tctb1_raw_balances')
-            .select('account_code, account_name, balance, nature, debit, credit')
-            .eq('competence_id', competenceId);
+        // 1. Fetch raw balances (using paginated helper for safety)
+        const rawBalances = await fetchAllRawBalances([competenceId]);
         
-        if (balError) throw balError;
-
         // 2. Fetch mappings
         const { data: mappings, error: mapError } = await supabase
             .from('tctb1_mappings')
@@ -240,15 +245,10 @@ export const fetchHistoricalAggregatedData = async (
         if (!competences || competences.length === 0) return [];
 
         const compIds = competences.map(c => c.id);
-        const { data: allBalances, error: balError } = await supabase
-            .from('tctb1_raw_balances')
-            .select('competence_id, account_code, account_name, balance, nature, debit, credit')
-            .in('competence_id', compIds);
+        const allBalances = await fetchAllRawBalances(compIds);
         
-        if (balError) throw balError;
-
         // DEBUG LOG: Audit the data coming from Supabase
-        console.log("DADOS DO BANCO PARA DRE:", (allBalances as any[])?.map(d => ({ 
+        console.log("DADOS DO BANCO PARA DRE:", allBalances?.map(d => ({ 
             acc: d.account_code, 
             debit: d.debit, 
             credit: d.credit 
@@ -311,25 +311,27 @@ export const fetchHistoricalAggregatedData = async (
                 let normalized = 0;
                 const macroClassLower = (b.macro_class || '').toLowerCase();
                 
-                // NEW CONSOLIDATION RULES (V4 Architecture - Keyword Based Flex)
+                // NEW CONSOLIDATION RULES (V5 Architecture - Keyword Based Flex)
                 if (macroClassLower.includes('receita')) {
-                    // Rule 2: Revenue = sum(Credits) - sum(Debits)
                     normalized = accounts.reduce((sum, acc) => sum + (acc.credit_movement || 0) - (acc.debit_movement || 0), 0);
-                } else if (macroClassLower.includes('custo') || macroClassLower.includes('despesa')) {
-                    // Rule 3: Costs/Expenses = sum(Debits) - sum(Credits)
+                    macroTotals['Receita'] += normalized;
+                } else if (macroClassLower.includes('custo')) {
                     normalized = accounts.reduce((sum, acc) => sum + (acc.debit_movement || 0) - (acc.credit_movement || 0), 0);
+                    macroTotals['Custo Variável'] += normalized;
+                } else if (macroClassLower.includes('despesa')) {
+                    normalized = accounts.reduce((sum, acc) => sum + (acc.debit_movement || 0) - (acc.credit_movement || 0), 0);
+                    macroTotals['Despesa Fixa'] += normalized;
                 } else {
-                    // Rule 1: Balance Sheet accounts keep using Saldo Final (applying inversion matrix)
                     const signedSum = accounts.reduce((sum, acc) => sum + acc.balance, 0);
                     const creditorBased = ['passivo circulante', 'passivo oneroso'];
                     normalized = creditorBased.includes(macroClassLower) ? signedSum * -1 : signedSum;
+                    
+                    if (macroClassLower.includes('ativo circulante')) macroTotals['Ativo Circulante'] += normalized;
+                    if (macroClassLower.includes('passivo circulante')) macroTotals['Passivo Circulante'] += normalized;
+                    if (macroClassLower.includes('passivo oneroso')) macroTotals['Passivo Oneroso'] += normalized;
                 }
                 
                 row[b.name] = normalized;
-
-                if (macroTotals[b.macro_class] !== undefined) {
-                    macroTotals[b.macro_class] += normalized;
-                }
 
                 // PILLAR 2: Granular Filtering by Name (Avoiding Tax Pollution)
                 const nameLower = b.name.toLowerCase();
