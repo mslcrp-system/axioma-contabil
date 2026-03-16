@@ -14,6 +14,7 @@ export const parseAndValidateCsv = (file: File): Promise<CsvParseResult> => {
     Papa.parse(file, {
       header: false,
       skipEmptyLines: true,
+      delimiter: ';', // ERP standard in Brazil
       complete: (results) => {
         try {
           const rows = results.data as string[][];
@@ -89,6 +90,10 @@ export const parseAndValidateCsv = (file: File): Promise<CsvParseResult> => {
           });
 
           // 3. Trava de Partida Dobrada Rigorosa
+          if (accounts.length === 0) {
+              throw new Error('Falha na extração: Nenhuma conta válida foi encontrada. Verifique o delimitador e o formato do CSV.');
+          }
+
           const difference = Math.abs(totalDevedor - totalCredor);
           
           // Margem de erro por arredondamentos flutuantes em grandes balancetes (ex: 0.10 centavos)

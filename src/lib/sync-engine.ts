@@ -147,6 +147,14 @@ export const fetchClientCompetences = async (clientId: string) => {
 };
 
 /**
+ * Deletes a competence and all its associated balances (via CASCADE).
+ */
+export const deleteCompetence = async (competenceId: string) => {
+    const { error } = await supabase.from('tctb1_competences').delete().eq('id', competenceId);
+    if (error) throw error;
+};
+
+/**
  * Fetches historical balances and calculates mapping status for a specific competence.
  */
 export const fetchBalancesForCompetence = async (

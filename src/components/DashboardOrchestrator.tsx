@@ -10,7 +10,7 @@ import { ClientSelector } from "./ClientSelector";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../lib/supabase";
 import { aggregateBalancesByBucket } from "../lib/engine";
-import { fetchBalancesForCompetence, fetchClientCompetences, fetchHistoricalAggregatedData } from "../lib/sync-engine";
+import { fetchBalancesForCompetence, fetchClientCompetences, fetchHistoricalAggregatedData, deleteCompetence } from "../lib/sync-engine";
 import { ResponsiveContainer, ComposedChart, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Bar } from 'recharts';
 import { useRef } from "react";
 import html2canvas from "html2canvas";
@@ -267,6 +267,39 @@ export function DashboardOrchestrator() {
     return result;
   };
 
+  const handleDeleteMonth = async () => {
+    const competenceId = availableCompetences.find(c => c.reference_date === referenceDate)?.id;
+    if (!competenceId || !clientId) return;
+
+    if (!confirm(`Deseja realmente excluir todos os dados da competência ${referenceDate}? Esta ação é irreversível.`)) return;
+
+    try {
+        setIsDataLoading(true);
+        await deleteCompetence(competenceId);
+        
+        // Update local available competences list
+        const nextComps = availableCompetences.filter(c => c.id !== competenceId);
+        setAvailableCompetences(nextComps);
+
+        if (nextComps.length > 0) {
+            // Auto-select the next available one (usually the previous month in our sorted list)
+            await handleMonthChange(nextComps[0].id);
+        } else {
+            // No months left, reset and show upload
+            setCsvMetadata(currentCnpj!, "");
+            setAllRawBalances([]);
+            setOrphanAccounts([]);
+            setHistoricalData([]);
+            setView('mapping');
+            setShowUploadModal(true);
+        }
+    } catch (err) {
+        alert("Erro ao excluir competência.");
+    } finally {
+        setIsDataLoading(false);
+    }
+  };
+
   const handleGeneratePDF = async () => {
     if (!simulatorRef.current || !reportRef.current || !clientId) return;
     setIsGeneratingPDF(true);
@@ -327,16 +360,38 @@ export function DashboardOrchestrator() {
                 <div className="flex flex-col">
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Competência</span>
                     {availableCompetences.length > 1 ? (
-                        <select
-                            value={availableCompetences.find(c => c.reference_date === referenceDate)?.id || ''}
-                            onChange={(e) => handleMonthChange(e.target.value)}
-                            className="text-sm font-semibold text-blue-600 bg-transparent border-none focus:ring-0 cursor-pointer p-0 h-5"
-                        >
-                            {availableCompetences.map(c => (
-                                <option key={c.id} value={c.id}>{c.reference_date}</option>
-                            ))}
-                        </select>
-                    ) : <span className="text-sm font-semibold text-slate-700">{referenceDate || '—'}</span>}
+                        <div className="flex items-center gap-2">
+                            <select
+                                value={availableCompetences.find(c => c.reference_date === referenceDate)?.id || ''}
+                                onChange={(e) => handleMonthChange(e.target.value)}
+                                className="text-sm font-semibold text-blue-600 bg-transparent border-none focus:ring-0 cursor-pointer p-0 h-5"
+                            >
+                                {availableCompetences.map(c => (
+                                    <option key={c.id} value={c.id}>{c.reference_date}</option>
+                                ))}
+                            </select>
+                            <button 
+                                onClick={handleDeleteMonth}
+                                className="p-1 text-slate-300 hover:text-rose-500 transition-colors"
+                                title="Excluir este balancete"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                             <span className="text-sm font-semibold text-slate-700">{referenceDate || '—'}</span>
+                             {referenceDate && (
+                                <button 
+                                    onClick={handleDeleteMonth}
+                                    className="p-1 text-slate-300 hover:text-rose-500 transition-colors"
+                                    title="Excluir este balancete"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                             )}
+                        </div>
+                    )}
                 </div>
                 <div className="w-px h-8 bg-slate-300"></div>
                 <div className="flex bg-slate-100 p-1 rounded-lg">
