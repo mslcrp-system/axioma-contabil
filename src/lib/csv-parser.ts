@@ -58,8 +58,8 @@ export const parseAndValidateCsv = (file: File): Promise<CsvParseResult> => {
           dataRows.forEach((row, idx) => {
             const accCode = row[1]; // Coluna B: Classificação (ex: 1.1.20)
             const accName = row[3]; // Coluna D: Descrição (ex: CLIENTES)
-            const debitStr = row[9]; // Coluna J: Movimento a Débito (V4 ERP Layout)
-            const creditStr = row[10]; // Coluna K: Movimento a Crédito (V4 ERP Layout)
+            const debitStr = row[7]; // Coluna H: Movimento a Débito (ERP Standard)
+            const creditStr = row[9]; // Coluna J: Movimento a Crédito (ERP Standard)
             const balanceStr = row[11]; // Coluna L: Saldo Atual (ex: 460.003,48d)
 
             // Filtro de linhas vazias ou totais
