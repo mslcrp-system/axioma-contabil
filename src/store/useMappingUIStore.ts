@@ -13,6 +13,8 @@ export interface RawAccount {
   account_code: string;
   account_name: string;
   balance: number;
+  debit_movement?: number;
+  credit_movement?: number;
   nature: 'Devedor' | 'Credor';
 }
 

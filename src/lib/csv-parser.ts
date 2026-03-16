@@ -47,21 +47,29 @@ export const parseAndValidateCsv = (file: File): Promise<CsvParseResult> => {
           let totalDevedor = 0;
           let totalCredor = 0;
 
+          // Helper para higienização de moeda BRL
+          const parseBRCurrency = (val: string | undefined): number => {
+            if (!val || val.trim() === '') return 0;
+            const cleanStr = val.replace(/\./g, '').replace(',', '.').toLowerCase();
+            const valueMatch = cleanStr.match(/([\d\.]+)/);
+            return valueMatch ? parseFloat(valueMatch[1]) : 0;
+          };
+
           dataRows.forEach((row, idx) => {
             const accCode = row[1]; // Coluna B: Classificação (ex: 1.1.20)
             const accName = row[3]; // Coluna D: Descrição (ex: CLIENTES)
+            const debitStr = row[9]; // Coluna J: Movimento a Débito (V4 ERP Layout)
+            const creditStr = row[10]; // Coluna K: Movimento a Crédito (V4 ERP Layout)
             const balanceStr = row[11]; // Coluna L: Saldo Atual (ex: 460.003,48d)
 
             // Filtro de linhas vazias ou totais
             if (!accCode || accCode.trim() === '' || !balanceStr || balanceStr.trim() === '') return;
 
-            // Limpeza e conversão monetária BR
-            const cleanStr = balanceStr.replace(/\./g, '').replace(',', '.').toLowerCase();
-            const valueMatch = cleanStr.match(/([\d\.]+)/);
-            if (!valueMatch) return;
-
-            const balanceRaw = parseFloat(valueMatch[1]);
-            const isDevedor = cleanStr.endsWith('d');
+            const balanceRaw = parseBRCurrency(balanceStr);
+            const debit_movement = parseBRCurrency(debitStr);
+            const credit_movement = parseBRCurrency(creditStr);
+            
+            const isDevedor = balanceStr.toLowerCase().endsWith('d');
             const nature = isDevedor ? 'Devedor' : 'Credor';
             
             // Signed balance: Debit is positive, Credit is negative
@@ -74,6 +82,8 @@ export const parseAndValidateCsv = (file: File): Promise<CsvParseResult> => {
               account_code: accCode.trim(),
               account_name: accName.trim(),
               balance,
+              debit_movement,
+              credit_movement,
               nature
             });
           });
