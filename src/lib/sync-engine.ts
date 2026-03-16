@@ -81,6 +81,8 @@ export const runAutoAllocationSync = async (
             account_code: acc.account_code,
             account_name: acc.account_name,
             balance: acc.balance,
+            debit: acc.debit_movement || 0,
+            credit: acc.credit_movement || 0,
             nature: acc.nature
         }));
 
@@ -155,7 +157,7 @@ export const fetchBalancesForCompetence = async (
         // 1. Fetch raw balances
         const { data: rawBalances, error: balError } = await supabase
             .from('tctb1_raw_balances')
-            .select('*')
+            .select('account_code, account_name, balance, nature, debit, credit')
             .eq('competence_id', competenceId);
         
         if (balError) throw balError;
@@ -178,6 +180,8 @@ export const fetchBalancesForCompetence = async (
                 account_code: acc.account_code,
                 account_name: acc.account_name,
                 balance: Number(acc.balance),
+                debit_movement: Number(acc.debit || 0),
+                credit_movement: Number(acc.credit || 0),
                 nature: acc.nature
             };
 
@@ -222,7 +226,7 @@ export const fetchHistoricalAggregatedData = async (
         const compIds = competences.map(c => c.id);
         const { data: allBalances, error: balError } = await supabase
             .from('tctb1_raw_balances')
-            .select('competence_id, account_code, account_name, balance, nature')
+            .select('competence_id, account_code, account_name, balance, nature, debit, credit')
             .in('competence_id', compIds);
         
         if (balError) throw balError;
@@ -247,6 +251,8 @@ export const fetchHistoricalAggregatedData = async (
                     account_code: bal.account_code,
                     account_name: bal.account_name,
                     balance: Number(bal.balance),
+                    debit_movement: Number(bal.debit || 0),
+                    credit_movement: Number(bal.credit || 0),
                     nature: bal.nature
                 });
             }
@@ -278,10 +284,22 @@ export const fetchHistoricalAggregatedData = async (
 
             buckets.forEach(b => {
                 const accounts = (drillDown[comp.id] && drillDown[comp.id][b.id]) || [];
-                const signedSum = accounts.reduce((sum, acc) => sum + acc.balance, 0);
                 
-                const creditorBased = ['Receita', 'Passivo Circulante', 'Passivo Oneroso'];
-                const normalized = creditorBased.includes(b.macro_class) ? signedSum * -1 : signedSum;
+                let normalized = 0;
+                
+                // NEW CONSOLIDATION RULES (V4 Architecture)
+                if (b.macro_class === 'Receita') {
+                    // Rule 2: Revenue = sum(Credits) - sum(Debits)
+                    normalized = accounts.reduce((sum, acc) => sum + (acc.credit_movement || 0) - (acc.debit_movement || 0), 0);
+                } else if (b.macro_class === 'Custo Variável' || b.macro_class === 'Despesa Fixa') {
+                    // Rule 3: Costs/Expenses = sum(Debits) - sum(Credits)
+                    normalized = accounts.reduce((sum, acc) => sum + (acc.debit_movement || 0) - (acc.credit_movement || 0), 0);
+                } else {
+                    // Rule 1: Balance Sheet accounts keep using Saldo Final (applying inversion matrix)
+                    const signedSum = accounts.reduce((sum, acc) => sum + acc.balance, 0);
+                    const creditorBased = ['Passivo Circulante', 'Passivo Oneroso'];
+                    normalized = creditorBased.includes(b.macro_class) ? signedSum * -1 : signedSum;
+                }
                 
                 row[b.name] = normalized;
 
@@ -289,7 +307,7 @@ export const fetchHistoricalAggregatedData = async (
                     macroTotals[b.macro_class] += normalized;
                 }
 
-                // Granular Filtering for Financing Structure (Isolation)
+                // PILLAR 2: Granular Filtering by Name (Avoiding Tax Pollution)
                 const nameLower = b.name.toLowerCase();
                 if (nameLower.includes('cliente') || nameLower.includes('receber')) {
                     clientesSum += normalized;

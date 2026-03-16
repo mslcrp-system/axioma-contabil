@@ -96,13 +96,13 @@ export function DashboardOrchestrator() {
     if (availableCompetences.length === 0) return;
     
     const mostRecent = availableCompetences[0];
-    const needsSelection = !referenceDate || !availableCompetences.find(c => c.reference_date === referenceDate);
+    const isReferenceDateMissing = !referenceDate;
+    const isReferenceDateInvalidForSelection = !availableCompetences.find(c => c.reference_date === referenceDate);
     
-    if (needsSelection) {
+    if (isReferenceDateMissing || isReferenceDateInvalidForSelection) {
       setIsDataLoading(true);
       handleMonthChange(mostRecent.id).finally(() => {
         setIsDataLoading(false);
-        setView('dashboard');
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
