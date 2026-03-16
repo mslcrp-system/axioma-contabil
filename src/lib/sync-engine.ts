@@ -171,6 +171,27 @@ export const fetchAllRawBalances = async (competenceIds: string[]) => {
     }
     return allData;
 };
+/**
+ * Fetches all uploaded competences (months) for a specific client.
+ */
+export const fetchClientCompetences = async (clientId: string) => {
+    const { data, error } = await supabase
+        .from('tctb1_competences')
+        .select('id, reference_date')
+        .eq('client_id', clientId)
+        .order('reference_date', { ascending: false });
+    
+    if (error) throw error;
+    return data;
+};
+
+/**
+ * Deletes a competence and all its associated balances (via CASCADE).
+ */
+export const deleteCompetence = async (competenceId: string) => {
+    const { error } = await supabase.from('tctb1_competences').delete().eq('id', competenceId);
+    if (error) throw error;
+};
 
 /**
  * Fetches historical balances and calculates mapping status for a specific competence.
