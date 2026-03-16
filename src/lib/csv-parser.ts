@@ -51,9 +51,10 @@ export const parseAndValidateCsv = (file: File): Promise<CsvParseResult> => {
           // Helper para higienização de moeda BRL
           const parseBRCurrency = (val: string | undefined): number => {
             if (!val || val.trim() === '') return 0;
-            const cleanStr = val.replace(/\./g, '').replace(',', '.').toLowerCase();
-            const valueMatch = cleanStr.match(/([\d\.]+)/);
-            return valueMatch ? parseFloat(valueMatch[1]) : 0;
+            // Strip anything that is NOT a digit, comma or dot
+            const cleanStr = val.replace(/[^\d,\.]/g, '').replace(/\./g, '').replace(',', '.');
+            const parsed = parseFloat(cleanStr);
+            return isNaN(parsed) ? 0 : parsed;
           };
 
           dataRows.forEach((row, idx) => {
@@ -62,6 +63,11 @@ export const parseAndValidateCsv = (file: File): Promise<CsvParseResult> => {
             const debitStr = row[7]; // Coluna H: Movimento a Débito (ERP Standard)
             const creditStr = row[9]; // Coluna J: Movimento a Crédito (ERP Standard)
             const balanceStr = row[11]; // Coluna L: Saldo Atual (ex: 460.003,48d)
+
+            // DEBUG LOG: First 3 rows to audit extraction
+            if (idx < 3) {
+                console.log(`[Parser Debug Row ${idx}]:`, { accCode, debitStr, creditStr, balanceStr });
+            }
 
             // Filtro de linhas vazias ou totais
             if (!accCode || accCode.trim() === '' || !balanceStr || balanceStr.trim() === '') return;

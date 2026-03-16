@@ -87,6 +87,14 @@ export const runAutoAllocationSync = async (
         }));
 
         const { error: batchError } = await supabase.from('tctb1_raw_balances').insert(chunk);
+        
+        // DEBUG LOG: Audit the payload being sent to Supabase
+        console.log(`[Batch ${batchNum}] PAYLOAD ENVIADO:`, chunk.slice(0, 3).map(c => ({
+            code: c.account_code,
+            debit: c.debit,
+            credit: c.credit
+        })));
+
         if (batchError) throw new Error(`Erro no Batch Insert: ${batchError.message}`);
     }
 
@@ -238,6 +246,13 @@ export const fetchHistoricalAggregatedData = async (
             .in('competence_id', compIds);
         
         if (balError) throw balError;
+
+        // DEBUG LOG: Audit the data coming from Supabase
+        console.log("DADOS DO BANCO PARA DRE:", (allBalances as any[])?.map(d => ({ 
+            acc: d.account_code, 
+            debit: d.debit, 
+            credit: d.credit 
+        })));
 
         const { data: mappings } = await supabase
             .from('tctb1_mappings')
