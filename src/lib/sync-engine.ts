@@ -309,19 +309,20 @@ export const fetchHistoricalAggregatedData = async (
                 const accounts = (drillDown[comp.id] && drillDown[comp.id][b.id]) || [];
                 
                 let normalized = 0;
+                const macroClassLower = (b.macro_class || '').toLowerCase();
                 
-                // NEW CONSOLIDATION RULES (V4 Architecture)
-                if (b.macro_class === 'Receita') {
+                // NEW CONSOLIDATION RULES (V4 Architecture - Keyword Based Flex)
+                if (macroClassLower.includes('receita')) {
                     // Rule 2: Revenue = sum(Credits) - sum(Debits)
                     normalized = accounts.reduce((sum, acc) => sum + (acc.credit_movement || 0) - (acc.debit_movement || 0), 0);
-                } else if (b.macro_class === 'Custo Variável' || b.macro_class === 'Despesa Fixa') {
+                } else if (macroClassLower.includes('custo') || macroClassLower.includes('despesa')) {
                     // Rule 3: Costs/Expenses = sum(Debits) - sum(Credits)
                     normalized = accounts.reduce((sum, acc) => sum + (acc.debit_movement || 0) - (acc.credit_movement || 0), 0);
                 } else {
                     // Rule 1: Balance Sheet accounts keep using Saldo Final (applying inversion matrix)
                     const signedSum = accounts.reduce((sum, acc) => sum + acc.balance, 0);
-                    const creditorBased = ['Passivo Circulante', 'Passivo Oneroso'];
-                    normalized = creditorBased.includes(b.macro_class) ? signedSum * -1 : signedSum;
+                    const creditorBased = ['passivo circulante', 'passivo oneroso'];
+                    normalized = creditorBased.includes(macroClassLower) ? signedSum * -1 : signedSum;
                 }
                 
                 row[b.name] = normalized;
