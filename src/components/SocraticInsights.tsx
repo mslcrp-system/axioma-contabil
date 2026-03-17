@@ -8,6 +8,42 @@ interface SocraticInsightsProps {
   buckets: Bucket[];
 }
 
+/**
+ * SANITIZAÇÃO DE PAYLOAD (INVERSÃO DE SINAL):
+ * Inverte o sinal matemático (value * -1) EXCLUSIVAMENTE para naturezas credoras.
+ * Isso garante que a IA leia PL, Passivo e Receitas saudáveis como números positivos.
+ */
+function sanitizeDrillDown(rawDrillDown: any, buckets: Bucket[]) {
+  if (!rawDrillDown) return {};
+  
+  const creditNatureClasses = [
+    'passivo circulante',
+    'passivo nao circulante',
+    'passivo oneroso',
+    'patrimonio liquido',
+    'receita'
+  ];
+
+  // Deep clone to avoid mutating origin or state
+  const sanitized = JSON.parse(JSON.stringify(rawDrillDown));
+
+  for (const bucketId in sanitized) {
+    const bucket = buckets.find(b => b.id === bucketId);
+    if (!bucket) continue;
+
+    const macroClass = (bucket.macro_class || '').toLowerCase();
+    const needsInversion = creditNatureClasses.some(c => macroClass.includes(c));
+
+    if (needsInversion) {
+      sanitized[bucketId] = sanitized[bucketId].map((acc: any) => ({
+        ...acc,
+        balance: acc.balance * -1
+      }));
+    }
+  }
+  return sanitized;
+}
+
 export function SocraticInsights({ data, buckets }: SocraticInsightsProps) {
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -22,6 +58,10 @@ export function SocraticInsights({ data, buckets }: SocraticInsightsProps) {
     setError(null);
     setHasRun(true);
     try {
+      // 1. Sanitize ONLY DrillDown (TimeSeries is already normalized by sync-engine)
+      // We invert signs for credit-nature accounts so the AI reads healthy equity/revenue as positive.
+      const sanitizedDrillDown = sanitizeDrillDown(data[data.length - 1].drillDown, buckets);
+
       const response = await fetch('/api/generate-insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -36,7 +76,7 @@ export function SocraticInsights({ data, buckets }: SocraticInsightsProps) {
             fornecedores: d.fornecedores,
             passivo_oneroso: d.passivo_oneroso
           })),
-          drillDown: data[data.length - 1].drillDown
+          drillDown: sanitizedDrillDown
         })
       });
 
